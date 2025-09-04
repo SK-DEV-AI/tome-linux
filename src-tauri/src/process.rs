@@ -8,8 +8,6 @@ pub struct Process {
     pub pid: Pid,
 }
 
-use anyhow::anyhow;
-
 impl Process {
     pub fn current() -> Self {
         Self {
