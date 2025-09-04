@@ -47,19 +47,15 @@ pub async fn fetch(url: String, options: ProxyOptions) -> Result<HTTPResponse, S
     };
 
     let mut headers = HeaderMap::new();
-    headers.insert("Origin", HeaderValue::from_static("tauri://runebook.ai"));
-    headers.insert(
-        "Content-Type",
-        HeaderValue::from_static("application/json"),
-    );
+    headers.insert("Origin", "tauri://runebook.ai".parse().unwrap());
+    headers.insert("Content-Type", "application/json".parse().unwrap());
 
     if let Some(h) = options.headers {
         for (k, v) in h.iter() {
-            let header_name = HeaderName::from_bytes(k.as_bytes())
-                .map_err(|e| format!("Invalid header name '{}': {}", k, e))?;
-            let header_value = HeaderValue::from_bytes(v.as_bytes())
-                .map_err(|e| format!("Invalid header value for '{}': {}", k, e))?;
-            headers.insert(header_name, header_value);
+            headers.insert(
+                HeaderName::from_bytes(k.as_bytes()).unwrap(),
+                HeaderValue::from_bytes(v.as_bytes()).unwrap(),
+            );
         }
     }
 
