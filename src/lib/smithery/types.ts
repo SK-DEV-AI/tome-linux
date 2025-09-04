@@ -15,7 +15,7 @@ export interface CompactServer {
     displayName: string;
     description: string;
     homepage: string;
-    useCount: number;
+    useCount: string;
     isDeployed: boolean;
     createdAt: string;
 }
@@ -23,10 +23,8 @@ export interface CompactServer {
 export interface Server {
     qualifiedName: string;
     displayName: string;
-    description: string;
-    remote: boolean;
     iconUrl: string | null;
-    deploymentUrl: string | null;
+    deploymentUrl: string;
     connections: Connection[];
     security?: {
         scanPassed: boolean;

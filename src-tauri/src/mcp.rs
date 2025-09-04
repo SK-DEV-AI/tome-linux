@@ -18,25 +18,74 @@ use tokio::process::Command;
 //
 pub fn get_os_specific_command(command: &str, app: &AppHandle) -> Result<Command> {
     let os_specific_command = match command {
-        "python" => "python",
-        "uvx" => "uvx",
-        "node" => "node",
-        "npx" => "npx",
-        "bunx" => "bunx",
+        "python" => {
+            if cfg!(windows) {
+                return Err(anyhow!("Python not supported on Windows yet"));
+            } else {
+                "python"
+            }
+        }
+        "uvx" => {
+            if cfg!(windows) {
+                "uvx.exe"
+            } else {
+                "uvx"
+            }
+        }
+        "node" => {
+            if cfg!(windows) {
+                "node.cmd"
+            } else {
+                "node"
+            }
+        }
+        "npx" => {
+            if cfg!(windows) {
+                "npx.cmd"
+            } else {
+                "npx"
+            }
+        }
+        "bunx" => {
+            if cfg!(windows) {
+                "bunx.cmd"
+            } else {
+                "bunx"
+            }
+        }
+        _ if command.contains("imcp-server") || command.contains("Tinderbox") => {
+            if cfg!(target_os = "macos") {
+                command
+            } else {
+                return Err(anyhow!("Are you trying to use a MacOS application outside of MacOS? Please tell us about this in our Discord."));
+            }
+        }
         _ => return Err(anyhow!("{} servers not supported.", command)),
     };
 
-    Ok(Command::new(
-        app.path()
-            .resolve(os_specific_command, BaseDirectory::Resource)?,
-    ))
+    // imcp/tinderbox is user-installed, and so doesn't exist in our base dir 🙃
+    if os_specific_command.contains("imcp-server") || os_specific_command.contains("Tinderbox") {
+        Ok(Command::new(PathBuf::from(os_specific_command)))
+    } else {
+        Ok(Command::new(
+            app.path()
+                .resolve(os_specific_command, BaseDirectory::Resource)?,
+        ))
+    }
 }
 
 // Install Python (uv/uvx) and Node (npm/npx), via Hermit.
 //
 pub async fn bootstrap(app: AppHandle) -> Result<()> {
-    let uvx = get_os_specific_command("uvx", &app)?;
-    let npx = get_os_specific_command("npx", &app)?;
+    let mut uvx = get_os_specific_command("uvx", &app)?;
+    let mut npx = get_os_specific_command("npx", &app)?;
+
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        uvx.creation_flags(CREATE_NO_WINDOW);
+        npx.creation_flags(CREATE_NO_WINDOW);
+    }
 
     let uvx = uvx.arg("--help");
     uvx.kill_on_drop(true);
@@ -146,27 +195,9 @@ pub async fn call_tool(
     state: tauri::State<'_, State>,
 ) -> Result<String> {
     let sessions = state.sessions.lock().await;
-
-    let running_session = match sessions.get(&session_id) {
-        Some(s) => s,
-        None => return Err(anyhow!("Session {} not found", session_id)),
-    };
-
-    let service_name = match running_session.tools.get(&name) {
-        Some(s) => s.clone(),
-        None => return Err(anyhow!("Tool {} not found in session {}", name, session_id)),
-    };
-
-    let server = match running_session.mcp_servers.get(&service_name) {
-        Some(s) => s,
-        None => {
-            return Err(anyhow!(
-                "MCP Server {} not found for tool {}",
-                service_name,
-                name
-            ))
-        }
-    };
+    let running_session = sessions.get(&session_id).unwrap();
+    let service_name = running_session.tools.get(&name).unwrap().clone();
+    let server = running_session.mcp_servers.get(&service_name).unwrap();
 
     let tool_call = CallToolRequestParam {
         name: std::borrow::Cow::from(name),

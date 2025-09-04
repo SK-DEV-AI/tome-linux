@@ -5,7 +5,6 @@
     import Flex from '$components/Flex.svelte';
     import Input from '$components/Input.svelte';
     import Scrollable from '$components/Scrollable.svelte';
-    import Spinner from '$components/Spinner.svelte';
     import Card from '$components/Smithery/Card.svelte';
     import Configuration from '$components/Smithery/Configuration.svelte';
     import type { McpConfig } from '$lib/mcp';
@@ -19,7 +18,6 @@
     let servers = $state(data.servers);
     let page: number = $state(1);
     let query: string = $state('');
-    let loading = $state(false);
 
     let serverToInstall: Server | null = $state(null);
 
@@ -28,7 +26,6 @@
     }
 
     async function loadNextPage() {
-        loading = true;
         try {
             page += 1;
             const newServers = await new Client().servers(page);
@@ -44,23 +41,16 @@
             console.error('Failed to load more servers:', error);
             // Revert page increment on error
             page -= 1;
-        } finally {
-            loading = false;
         }
     }
 
     async function search() {
-        loading = true;
-        try {
-            const client = new Client();
+        const client = new Client();
 
-            if (query !== '') {
-                servers = await client.search(query);
-            } else {
-                servers = await client.servers();
-            }
-        } finally {
-            loading = false;
+        if (query !== '') {
+            servers = await client.search(query);
+        } else {
+            servers = await client.servers();
         }
     }
 
@@ -96,7 +86,7 @@
 {/if}
 
 <Scrollable class="!h-content pr-2">
-    <Flex class="w-full items-center">
+    <Flex class="w-full">
         <Input
             bind:value={query}
             class="placeholder:text-light mb-8"
@@ -105,9 +95,6 @@
             onkeyup={debounce(search)}
             placeholder="Search Smithery..."
         />
-        {#if loading && query}
-            <Spinner class="mb-8 ml-4" />
-        {/if}
     </Flex>
 
     <Flex class="grid w-full auto-cols-max auto-rows-max grid-cols-3 items-start gap-4">
@@ -117,16 +104,8 @@
     </Flex>
 
     <Flex class="w-full justify-center">
-        <Button
-            onclick={loadNextPage}
-            class="border-light text-medium m-auto mt-8"
-            disabled={loading}
-        >
-            {#if loading}
-                <Spinner />
-            {:else}
-                Load More
-            {/if}
+        <Button onclick={loadNextPage} class="border-light text-medium m-auto mt-8">
+            Load More
         </Button>
     </Flex>
 </Scrollable>

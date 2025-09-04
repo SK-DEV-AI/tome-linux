@@ -12,16 +12,36 @@
         "copyright": "",
         "createUpdaterArtifacts": true,
         "targets": [
-            "appimage"
+            "dmg",
+            "app",
+            "nsis"
         ],
         "externalBin": [],
         "icon": [
             "icons/32x32.png",
             "icons/128x128.png",
             "icons/128x128@2x.png",
+            "icons/icon.icns",
             "icons/icon.ico"
         ],
+        "windows": {
+            "certificateThumbprint": null,
+            "digestAlgorithm": "sha256",
+            "nsis": {
+                "installerHooks": "./windows/hooks.nsi"
+            },
+            "timestampUrl": "",
+            "signCommand": "relic.exe sign --file %1 --key azure --config relic.conf"
+        },
         "longDescription": "",
+        "macOS": {
+            "entitlements": "./Entitlements.plist",
+            "exceptionDomain": "",
+            "frameworks": [],
+            "providerShortName": null,
+            "signingIdentity": null,
+            "minimumSystemVersion": "10.13"
+        },
         "resources": {
             "python": "python",
             "uvx": "uvx",
@@ -30,7 +50,12 @@
             "bunx": "bunx",
             "build/platform/windows/bin/*": ""
         },
-        "shortDescription": ""
+        "shortDescription": "",
+        "linux": {
+            "deb": {
+                "depends": []
+            }
+        }
     },
     "productName": "Tome",
     "mainBinaryName": "tome",
@@ -57,6 +82,18 @@
         }
     },
     "app": {
+        "macOSPrivateApi": true,
+        "windows": [
+            {
+                "fullscreen": false,
+                "height": 600,
+                "resizable": true,
+                "title": "",
+                "width": 800,
+                "useHttpsScheme": true,
+                "backgroundColor": "#0b0b0b"
+            }
+        ],
         "security": {
             "csp": null,
             "capabilities": [

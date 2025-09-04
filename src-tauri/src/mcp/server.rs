@@ -33,7 +33,7 @@ impl McpServer {
         }
 
         let proc = McpProcess::start(command, args, env, app)?;
-        let pid = proc.pid()?;
+        let pid = proc.pid();
         let service = ().serve(proc).await?;
         Ok(Self { 
             service, 

@@ -11,7 +11,7 @@ pub struct Process {
 impl Process {
     pub fn current() -> Self {
         Self {
-            pid: sysinfo::get_current_pid().expect("Failed to get current process ID"),
+            pid: sysinfo::get_current_pid().unwrap(),
         }
     }
 
@@ -23,27 +23,15 @@ impl Process {
         let mut procs: HashSet<Self> = HashSet::new();
         let sys = System::new_all();
 
-        for (pid, proc) in sys.processes().iter() {
+        sys.processes().iter().for_each(|(pid, proc)| {
             if let Some(parent_pid) = proc.parent() {
                 if parent_pid == self.pid {
-                    let child_proc = Self { pid: *pid };
-                    procs.insert(child_proc.clone());
-                    // Handle the result from the recursive call
-                    match child_proc.children() {
-                        Ok(grandchildren) => procs.extend(grandchildren),
-                        Err(e) => {
-                            log::error!(
-                                "Failed to get children of process {}: {}",
-                                child_proc.pid,
-                                e
-                            );
-                            // Decide if you want to continue or return the error
-                            // For now, we'll log and continue, which is safer than panicking
-                        }
-                    }
+                    let proc = Self { pid: *pid };
+                    procs.insert(proc.clone());
+                    procs.extend(proc.children().unwrap());
                 }
             }
-        }
+        });
 
         Ok(procs)
     }
