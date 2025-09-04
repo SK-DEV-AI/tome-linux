@@ -53,7 +53,9 @@ fn main() {
                 .build(),
         )
         .setup(|app| {
-            APP_HANDLE.set(app.handle().clone()).unwrap();
+            APP_HANDLE
+                .set(app.handle().clone())
+                .expect("Failed to set APP_HANDLE");
 
             let window = app.get_window("main").expect("Couldn't get main window");
 
@@ -108,7 +110,9 @@ fn main() {
             RunEvent::Exit => {
                 // Ensure we kill every child (and child of child, of child, etc.)
                 // MCP server, watcher, etc. process
-                Process::current().kill().unwrap();
+                if let Err(e) = Process::current().kill() {
+                    log::error!("Failed to kill child processes on exit: {}", e);
+                }
             }
 
             _ => {}

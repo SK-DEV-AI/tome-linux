@@ -195,9 +195,27 @@ pub async fn call_tool(
     state: tauri::State<'_, State>,
 ) -> Result<String> {
     let sessions = state.sessions.lock().await;
-    let running_session = sessions.get(&session_id).unwrap();
-    let service_name = running_session.tools.get(&name).unwrap().clone();
-    let server = running_session.mcp_servers.get(&service_name).unwrap();
+
+    let running_session = match sessions.get(&session_id) {
+        Some(s) => s,
+        None => return Err(anyhow!("Session {} not found", session_id)),
+    };
+
+    let service_name = match running_session.tools.get(&name) {
+        Some(s) => s.clone(),
+        None => return Err(anyhow!("Tool {} not found in session {}", name, session_id)),
+    };
+
+    let server = match running_session.mcp_servers.get(&service_name) {
+        Some(s) => s,
+        None => {
+            return Err(anyhow!(
+                "MCP Server {} not found for tool {}",
+                service_name,
+                name
+            ))
+        }
+    };
 
     let tool_call = CallToolRequestParam {
         name: std::borrow::Cow::from(name),

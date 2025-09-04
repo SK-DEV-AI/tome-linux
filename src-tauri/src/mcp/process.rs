@@ -17,6 +17,8 @@ pub(crate) struct McpProcess {
     pub child_stdout: ChildStdout,
 }
 
+use anyhow::anyhow;
+
 impl McpProcess {
     pub fn start(
         command: String,
@@ -41,8 +43,16 @@ impl McpProcess {
         }
 
         let mut child = cmd.spawn()?;
-        let child_stdin = child.stdin.take().unwrap();
-        let child_stdout = child.stdout.take().unwrap();
+
+        let child_stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| anyhow!("Failed to take stdin for command: {}", command))?;
+
+        let child_stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| anyhow!("Failed to take stdout for command: {}", command))?;
 
         Ok(Self {
             child,
@@ -51,8 +61,11 @@ impl McpProcess {
         })
     }
 
-    pub fn pid(&self) -> Pid {
-        Pid::from_u32(self.child.id().unwrap())
+    pub fn pid(&self) -> Result<Pid> {
+        self.child
+            .id()
+            .map(Pid::from_u32)
+            .ok_or_else(|| anyhow!("Child process does not have a PID"))
     }
 
     pub fn split(self) -> (McpProcessOut, ChildStdin) {

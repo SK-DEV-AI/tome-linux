@@ -63,9 +63,7 @@ pub async fn call_mcp_tool(
     arguments: serde_json::Map<String, serde_json::Value>,
     state: tauri::State<'_, State>,
 ) -> Result<String, String> {
-    Ok(mcp::call_tool(session_id, name, arguments, state)
-        .await
-        .unwrap())
+    ok_or_err!(mcp::call_tool(session_id, name, arguments, state).await)
 }
 
 #[tauri::command]
@@ -94,8 +92,7 @@ pub async fn rename_mcp_server(
 
 #[tauri::command]
 pub async fn watch(path: String, id: i64, state: tauri::State<'_, State>) -> Result<(), String> {
-    daemon::watch(path, id, state.clone()).await.unwrap();
-    Ok(())
+    ok_or_err!(daemon::watch(path, id, state.clone()).await)
 }
 
 #[tauri::command]

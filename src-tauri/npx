@@ -9,7 +9,22 @@
 # Copyright 2021 Square, Inc. All Rights Reserved.
 
 set -euo pipefail
-LOGFILE="$HOME/Library/Logs/co.runebook/Tome.log"
+
+# --- Platform-specific log file ---
+LOG_DIR=""
+if [[ "$(uname)" == "Darwin" ]]; then
+    LOG_DIR="$HOME/Library/Logs/co.runebook"
+elif [[ "$(uname)" == "Linux" ]]; then
+    LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/co.runebook"
+else
+    # Fallback for other OSes (or if we want to disable logging)
+    LOG_DIR="/tmp"
+fi
+
+mkdir -p "$LOG_DIR"
+LOGFILE="$LOG_DIR/Tome.log"
+# ---
+
 echo >> $LOGFILE
 
 log() {

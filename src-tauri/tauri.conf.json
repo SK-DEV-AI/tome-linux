@@ -14,7 +14,8 @@
         "targets": [
             "dmg",
             "app",
-            "nsis"
+            "nsis",
+            "appimage"
         ],
         "externalBin": [],
         "icon": [
@@ -50,12 +51,7 @@
             "bunx": "bunx",
             "build/platform/windows/bin/*": ""
         },
-        "shortDescription": "",
-        "linux": {
-            "deb": {
-                "depends": []
-            }
-        }
+        "shortDescription": ""
     },
     "productName": "Tome",
     "mainBinaryName": "tome",
