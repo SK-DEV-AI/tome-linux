@@ -26,8 +26,22 @@
     }
 
     async function loadNextPage() {
-        page += 1;
-        servers = servers.concat(await new Client().servers(page));
+        try {
+            page += 1;
+            const newServers = await new Client().servers(page);
+
+            if (newServers.length > 0) {
+                servers = servers.concat(newServers);
+            } else {
+                // To prevent further requests if a page returns no servers.
+                page -= 1;
+                console.info('No more servers to load.');
+            }
+        } catch (error) {
+            console.error('Failed to load more servers:', error);
+            // Revert page increment on error
+            page -= 1;
+        }
     }
 
     async function search() {
@@ -49,6 +63,14 @@
     }
 
     async function install(config: McpConfig) {
+        // FIX: The filesystem MCP server's configuration function incorrectly
+        // splits the `allowed_dir` path into an array of characters. This
+        // checks for that specific server and joins the arguments back into a
+        // single path.
+        if (config.command.includes('@modelcontextprotocol/server-filesystem')) {
+            config.args = [config.args.join('')];
+        }
+
         await McpServer.create(config);
         serverToInstall = null;
     }
