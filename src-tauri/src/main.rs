@@ -1,5 +1,3 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![warn(unused_extern_crates)]
 
 mod commands;
@@ -22,8 +20,6 @@ use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 use crate::migrations::migrations;
 use crate::state::State;
 use crate::window::configure_window;
-#[cfg(target_os = "macos")]
-use crate::window::macos::configure_macos_window;
 
 // Globally available app handle
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
@@ -67,9 +63,6 @@ fn main() {
             });
 
             configure_window(&window);
-
-            #[cfg(target_os = "macos")]
-            configure_macos_window(&window);
 
             let _ = window.restore_state(StateFlags::all());
 

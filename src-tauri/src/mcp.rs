@@ -18,74 +18,25 @@ use tokio::process::Command;
 //
 pub fn get_os_specific_command(command: &str, app: &AppHandle) -> Result<Command> {
     let os_specific_command = match command {
-        "python" => {
-            if cfg!(windows) {
-                return Err(anyhow!("Python not supported on Windows yet"));
-            } else {
-                "python"
-            }
-        }
-        "uvx" => {
-            if cfg!(windows) {
-                "uvx.exe"
-            } else {
-                "uvx"
-            }
-        }
-        "node" => {
-            if cfg!(windows) {
-                "node.cmd"
-            } else {
-                "node"
-            }
-        }
-        "npx" => {
-            if cfg!(windows) {
-                "npx.cmd"
-            } else {
-                "npx"
-            }
-        }
-        "bunx" => {
-            if cfg!(windows) {
-                "bunx.cmd"
-            } else {
-                "bunx"
-            }
-        }
-        _ if command.contains("imcp-server") || command.contains("Tinderbox") => {
-            if cfg!(target_os = "macos") {
-                command
-            } else {
-                return Err(anyhow!("Are you trying to use a MacOS application outside of MacOS? Please tell us about this in our Discord."));
-            }
-        }
+        "python" => "python",
+        "uvx" => "uvx",
+        "node" => "node",
+        "npx" => "npx",
+        "bunx" => "bunx",
         _ => return Err(anyhow!("{} servers not supported.", command)),
     };
 
-    // imcp/tinderbox is user-installed, and so doesn't exist in our base dir 🙃
-    if os_specific_command.contains("imcp-server") || os_specific_command.contains("Tinderbox") {
-        Ok(Command::new(PathBuf::from(os_specific_command)))
-    } else {
-        Ok(Command::new(
-            app.path()
-                .resolve(os_specific_command, BaseDirectory::Resource)?,
-        ))
-    }
+    Ok(Command::new(
+        app.path()
+            .resolve(os_specific_command, BaseDirectory::Resource)?,
+    ))
 }
 
 // Install Python (uv/uvx) and Node (npm/npx), via Hermit.
 //
 pub async fn bootstrap(app: AppHandle) -> Result<()> {
-    let mut uvx = get_os_specific_command("uvx", &app)?;
-    let mut npx = get_os_specific_command("npx", &app)?;
-
-    #[cfg(windows)]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        uvx.creation_flags(CREATE_NO_WINDOW);
-        npx.creation_flags(CREATE_NO_WINDOW);
-    }
+    let uvx = get_os_specific_command("uvx", &app)?;
+    let npx = get_os_specific_command("npx", &app)?;
 
     let uvx = uvx.arg("--help");
     uvx.kill_on_drop(true);

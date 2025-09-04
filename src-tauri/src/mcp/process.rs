@@ -36,12 +36,6 @@ impl McpProcess {
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped());
 
-        #[cfg(windows)]
-        {
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
-
         let mut child = cmd.spawn()?;
 
         let child_stdin = child

@@ -35,6 +35,9 @@ log() {
 }
 trap 'log "ERROR: Exiting w/ status: $?."' ERR
 
+(
+flock -x 200
+
 log "Starting..."
 
 log "mkdir -p ~/.config/runebook/hermit/bin ?"
@@ -80,3 +83,5 @@ log "npx $*"
 npx "$@" || log "Error running npx $*"
 
 log "End."
+
+) 200>"$LOG_DIR/hermit.lock"
