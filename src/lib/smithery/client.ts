@@ -14,20 +14,21 @@ export class Client extends HttpClient {
     }
 
     async servers(page: number = 1): Promise<CompactServer[]> {
-        return (
-            (await this.get(`/servers?q=is:local&pageSize=24&page=${page}`)) as ServerList
-        ).servers.filter(s => Number(s.useCount) > 0);
+        const response = (await this.get(
+            `/servers?q=is:local&pageSize=24&page=${page}`
+        )) as ServerList;
+        return response?.servers || [];
     }
 
     async server(name: string): Promise<Server> {
+        // The `get` method in HttpClient will throw on non-200 responses,
+        // so we can be reasonably sure the cast is safe if it doesn't throw.
         return (await this.get(`/servers/${name}`)) as Server;
     }
 
     async search(query: string): Promise<CompactServer[]> {
         const q = encodeURIComponent(query).replace(/%20/g, '+');
-
-        return ((await this.get(`/servers?q=is:local+${q}`)) as ServerList).servers.filter(
-            s => Number(s.useCount) > 0
-        );
+        const response = (await this.get(`/servers?q=is:local+${q}`)) as ServerList;
+        return response?.servers || [];
     }
 }
