@@ -21,7 +21,9 @@ pub async fn get_models(url: &str) -> Result<Vec<String>> {
     Ok(json.models.into_iter().map(|m| m.name).collect())
 }
 
-#[derive(Debug, Serialize, Clone)]
+use serde::Deserialize;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatMessage {
     pub role: String,
     pub content: String,

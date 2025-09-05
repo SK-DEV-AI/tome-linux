@@ -3,10 +3,8 @@ mod db;
 mod models;
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use models::Engine;
+use futures_util::StreamExt;
 use std::io::Write;
-
-use models::ClientOptions;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
