@@ -33,17 +33,19 @@ impl McpServer {
         }
 
         let proc = McpProcess::start(command, args, env, app)?;
-        let pid = proc.pid();
+        let pid = proc.pid()?;
         let service = ().serve(proc).await?;
-        Ok(Self { 
-            service, 
+        Ok(Self {
+            service,
             pid,
             custom_name: None,
         })
     }
 
     pub fn name(&self) -> String {
-        self.custom_name.clone().unwrap_or_else(|| self.peer_info().server_info.name)
+        self.custom_name
+            .clone()
+            .unwrap_or_else(|| self.peer_info().server_info.name.clone())
     }
 
     pub fn set_name(&mut self, new_name: String) {

@@ -20,17 +20,38 @@ async fn main() -> anyhow::Result<()> {
 
     let engines = db::get_engines(&conn)?;
 
-    let mut all_models: Vec<(String, String, String)> = Vec::new(); // (model_name, engine_name, engine_url)
+    let mut all_models: Vec<(String, String, String, String)> = Vec::new(); // (model_name, engine_name, engine_url, engine_type)
 
     for engine in &engines {
-        if engine.r#type == "ollama" {
-            if let Some(url) = &engine.options.url {
-                if let Ok(models) = clients::ollama::get_models(url).await {
-                    for model_name in models {
-                        all_models.push((model_name, engine.name.clone(), url.clone()));
-                    }
-                }
+        println!("Fetching models for engine: {}", engine.name);
+        let models = match engine.r#type.as_str() {
+            "ollama" => {
+                let url = engine.options.url.as_deref().unwrap_or_default();
+                clients::ollama::get_models(url).await
             }
+            "openai-compat" | "openai" => {
+                let url = engine.options.url.as_deref().unwrap_or_default();
+                let key = engine.options.api_key.as_deref();
+                clients::openai::get_models(url, key).await
+            }
+            _ => {
+                println!("  > Engine type '{}' not supported in CLI yet.", engine.r#type);
+                Ok(vec![])
+            }
+        };
+
+        if let Ok(model_names) = models {
+            println!("  > Found {} models.", model_names.len());
+            for model_name in model_names {
+                all_models.push((
+                    model_name,
+                    engine.name.clone(),
+                    engine.options.url.clone().unwrap_or_default(),
+                    engine.r#type.clone(),
+                ));
+            }
+        } else {
+            println!("  > Error fetching models for {}", engine.name);
         }
     }
 
@@ -51,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
         .default(0)
         .interact()?;
 
-    let (selected_model, _, ollama_url) = &all_models[selection];
+    let (selected_model, _, url, engine_type) = &all_models[selection];
 
     println!("Starting chat with {}...", selected_model);
     println!("Type 'exit' or 'quit' to end the session.");
@@ -75,27 +96,33 @@ async fn main() -> anyhow::Result<()> {
             content: input.to_string(),
         });
 
-        let mut stream =
-            clients::ollama::chat_stream(ollama_url, selected_model, history.clone()).await?;
+        if engine_type == "ollama" {
+            let mut stream =
+                clients::ollama::chat_stream(url, selected_model, history.clone()).await?;
 
-        let mut full_response = String::new();
-        print!("\nAssistant: ");
-        while let Some(Ok(chunk)) = stream.next().await {
-            let content = chunk.message.content;
-            print!("{}", content);
-            std::io::stdout().flush()?;
-            full_response.push_str(&content);
+            let mut full_response = String::new();
+            print!("\nAssistant: ");
+            while let Some(Ok(chunk)) = stream.next().await {
+                let content = chunk.message.content;
+                print!("{}", content);
+                std::io::stdout().flush()?;
+                full_response.push_str(&content);
 
-            if chunk.done {
-                break;
+                if chunk.done {
+                    break;
+                }
             }
-        }
 
-        history.push(clients::ollama::ChatMessage {
-            role: "assistant".to_string(),
-            content: full_response,
-        });
-        println!("\n");
+            history.push(clients::ollama::ChatMessage {
+                role: "assistant".to_string(),
+                content: full_response,
+            });
+            println!("\n");
+        } else {
+            println!("\nChatting with {} engines is not yet implemented in the CLI.", engine_type);
+            // Remove the user message from history as we didn't process it
+            history.pop();
+        }
     }
 
     Ok(())

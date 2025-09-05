@@ -11,7 +11,8 @@ export type SettingKey =
     | 'ollama-url'
     | 'custom-system-prompt'
     | 'color-scheme'
-    | 'labs-mode';
+    | 'labs-mode'
+    | 'smithery-api-key';
 
 interface Row {
     id: number;
@@ -45,6 +46,9 @@ export default class Setting extends Base<Row>('settings') {
 
     @getset('labs-mode')
     static LabsMode: boolean;
+
+    @getset('smithery-api-key')
+    static SmitheryApiKey: string;
 
     protected static async afterUpdate() {
         // Resync models in case a Provider key/url was updated.
