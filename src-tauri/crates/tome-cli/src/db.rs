@@ -22,8 +22,18 @@ pub fn get_engines(conn: &Connection) -> Result<Vec<Engine>> {
     let mut stmt = conn.prepare("SELECT id, name, type, options FROM engines")?;
     let engine_iter = stmt.query_map([], |row| {
         let options_str: String = row.get(3)?;
-        let options: ClientOptions = serde_json::from_str(&options_str)
-            .with_context(|| format!("Failed to parse options JSON for engine: {}", row.get::<_, String>(1)?))?;
+        let options: ClientOptions = serde_json::from_str(&options_str).map_err(|e| {
+            let engine_name = row.get::<_, String>(1).unwrap_or_else(|_| "unknown".to_string());
+            rusqlite::Error::FromSqlConversionFailure(
+                3,
+                rusqlite::types::Type::Text,
+                Box::new(anyhow::anyhow!(
+                    "Failed to parse options JSON for engine '{}': {}",
+                    engine_name,
+                    e
+                )),
+            )
+        })?;
 
         Ok(Engine {
             id: row.get(0)?,

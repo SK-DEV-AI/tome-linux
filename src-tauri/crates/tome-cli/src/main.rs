@@ -63,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
 
     let model_names: Vec<String> = all_models
         .iter()
-        .map(|(name, engine_name, _)| format!("{} ({})", name, engine_name))
+        .map(|(name, engine_name, _, _)| format!("{} ({})", name, engine_name))
         .collect();
 
     let selection = Select::with_theme(&ColorfulTheme::default())
