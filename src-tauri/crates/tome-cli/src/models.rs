@@ -8,6 +8,7 @@ pub struct ClientOptions {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Engine {
     pub id: i64,
     pub name: String,

@@ -3,7 +3,7 @@ pub(crate) mod server;
 
 use std::collections::HashMap;
 
-use crate::state::{RunningSession, State};
+use crate::state::State;
 
 use anyhow::{anyhow, Result};
 use rmcp::model::CallToolRequestParam;
