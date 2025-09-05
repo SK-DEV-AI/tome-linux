@@ -3,7 +3,7 @@ pub(crate) mod server;
 
 use std::collections::HashMap;
 
-use crate::state::{session::Session, State};
+use crate::state::{RunningSession, State};
 
 use anyhow::{anyhow, Result};
 use rmcp::model::CallToolRequestParam;
@@ -24,19 +24,18 @@ pub fn get_os_specific_command(command: &str, app: &AppHandle) -> Result<Command
     };
 
     app.path()
-        .resolve_resource(os_specific_command)
+        .resolve(os_specific_command, tauri::path::BaseDirectory::Resource)
         .map(Command::new)
         .map_err(anyhow::Error::from)
 }
 
 pub async fn bootstrap(app: AppHandle) -> Result<()> {
     let mut uvx = get_os_specific_command("uvx", &app)?;
-    let mut npx = get_os_specific_command("npx", &app)?;
-
-    let uvx = uvx.arg("--help");
+    uvx.arg("--help");
     uvx.kill_on_drop(true);
 
-    let npx = npx.arg("--help");
+    let mut npx = get_os_specific_command("npx", &app)?;
+    npx.arg("--help");
     npx.kill_on_drop(true);
 
     uvx.output().await?;
@@ -58,10 +57,7 @@ pub async fn start(
 
     let mut sessions = state.sessions.lock().await;
 
-    let mut session = match sessions.remove(&session_id) {
-        Some(session) => session,
-        None => Session::default(),
-    };
+    let mut session = sessions.remove(&session_id).unwrap_or_default();
 
     if session.mcp_servers.contains_key(&server.name()) {
         server.kill()?;

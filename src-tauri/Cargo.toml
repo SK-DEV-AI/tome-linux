@@ -48,17 +48,18 @@ tauri-plugin-log = "2"
 tauri-plugin-fs = "2.2.1"
 pin-project-lite = "0.2.16"
 tauri-plugin-opener = "2"
-reqwest = "0.12.15"
+reqwest = { version = "0.12.15", features = ["json", "stream"] }
 tauri-plugin-os = "2"
 notify = "8.1.0"
 thiserror = "2.0.12"
 
-# ADDED: Dependencies for tome-cli that are also needed by the main app
+# CLI / shared deps
+clap = { version = "4.5.11", features = ["derive"] }
 rusqlite = { version = "0.31.0", features = ["bundled"] }
 directories = "5.0"
 dialoguer = "0.11.0"
+console = "0.15.8"
 futures-util = "0.3"
-
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
