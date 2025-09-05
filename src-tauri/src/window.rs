@@ -1,6 +1,3 @@
-#[cfg(target_os = "macos")]
-pub(crate) mod macos;
-
 use tauri::{PhysicalPosition, PhysicalSize, Window};
 
 pub fn configure_window(window: &Window) {

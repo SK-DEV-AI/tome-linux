@@ -1,5 +1,3 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![warn(unused_extern_crates)]
 
 mod commands;
@@ -22,8 +20,6 @@ use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 use crate::migrations::migrations;
 use crate::state::State;
 use crate::window::configure_window;
-#[cfg(target_os = "macos")]
-use crate::window::macos::configure_macos_window;
 
 // Globally available app handle
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
@@ -53,7 +49,9 @@ fn main() {
                 .build(),
         )
         .setup(|app| {
-            APP_HANDLE.set(app.handle().clone()).unwrap();
+            APP_HANDLE
+                .set(app.handle().clone())
+                .expect("Failed to set APP_HANDLE");
 
             let window = app.get_window("main").expect("Couldn't get main window");
 
@@ -65,9 +63,6 @@ fn main() {
             });
 
             configure_window(&window);
-
-            #[cfg(target_os = "macos")]
-            configure_macos_window(&window);
 
             let _ = window.restore_state(StateFlags::all());
 
@@ -108,7 +103,9 @@ fn main() {
             RunEvent::Exit => {
                 // Ensure we kill every child (and child of child, of child, etc.)
                 // MCP server, watcher, etc. process
-                Process::current().kill().unwrap();
+                if let Err(e) = Process::current().kill() {
+                    log::error!("Failed to kill child processes on exit: {}", e);
+                }
             }
 
             _ => {}

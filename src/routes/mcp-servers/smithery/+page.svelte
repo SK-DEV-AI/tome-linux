@@ -63,12 +63,18 @@
     }
 
     async function install(config: McpConfig) {
-        // FIX: The filesystem MCP server's configuration function incorrectly
-        // splits the `allowed_dir` path into an array of characters. This
-        // checks for that specific server and joins the arguments back into a
-        // single path.
-        if (config.command.includes('@modelcontextprotocol/server-filesystem')) {
-            config.args = [config.args.join('')];
+        // HEURISTIC FIX: Some server stdioFunctions incorrectly split single
+        // arguments (like a file path) into an array of single characters.
+        // This detects that pattern (many single-character arguments) and
+        // joins them back together.
+        if (config.args.length > 1) {
+            const looksSplit = config.args.every(arg => arg.length === 1);
+            if (looksSplit) {
+                console.warn(
+                    `[MCP Installer] Detected potentially malformed arguments from server's configuration function. Re-joining into a single argument.`
+                );
+                config.args = [config.args.join('')];
+            }
         }
 
         await McpServer.create(config);
