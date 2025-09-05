@@ -2,20 +2,17 @@ pub(crate) mod process;
 pub(crate) mod server;
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 
-use crate::state::{Session, State};
+use crate::state::{session::Session, State};
 
 use anyhow::{anyhow, Result};
 use rmcp::model::CallToolRequestParam;
 use rmcp::model::Tool;
 use server::McpServer;
-use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager};
 use tokio::process::Command;
 
-// Maps uvx/npx/any future command to whatever command we need to run for the user's OS
-//
+// This function is now Linux-only, so no platform-specific logic is needed.
 pub fn get_os_specific_command(command: &str, app: &AppHandle) -> Result<Command> {
     let os_specific_command = match command {
         "python" => "python",
@@ -26,17 +23,15 @@ pub fn get_os_specific_command(command: &str, app: &AppHandle) -> Result<Command
         _ => return Err(anyhow!("{} servers not supported.", command)),
     };
 
-    Ok(Command::new(
-        app.path()
-            .resolve(os_specific_command, BaseDirectory::Resource)?,
-    ))
+    app.path()
+        .resolve_resource(os_specific_command)
+        .map(Command::new)
+        .map_err(anyhow::Error::from)
 }
 
-// Install Python (uv/uvx) and Node (npm/npx), via Hermit.
-//
 pub async fn bootstrap(app: AppHandle) -> Result<()> {
-    let uvx = get_os_specific_command("uvx", &app)?;
-    let npx = get_os_specific_command("npx", &app)?;
+    let mut uvx = get_os_specific_command("uvx", &app)?;
+    let mut npx = get_os_specific_command("npx", &app)?;
 
     let uvx = uvx.arg("--help");
     uvx.kill_on_drop(true);
@@ -50,8 +45,6 @@ pub async fn bootstrap(app: AppHandle) -> Result<()> {
     Ok(())
 }
 
-// Start an MCP Server
-//
 pub async fn start(
     session_id: i32,
     command: String,
@@ -70,11 +63,6 @@ pub async fn start(
         None => Session::default(),
     };
 
-    // Server already running. Kill the one we just spun up. It's a little weird to start the
-    // process then immediately kill it, but we need it running to get the name :/
-    //
-    // Makes the `start_mcp_server` command idempotent.
-    //
     if session.mcp_servers.contains_key(&server.name()) {
         server.kill()?;
         sessions.insert(session_id, session);
@@ -191,10 +179,8 @@ pub async fn rename_server(
 
     if let Some(session) = sessions.get_mut(&session_id) {
         if let Some(server) = session.mcp_servers.get_mut(&old_name) {
-            // Update the server's name
             server.set_name(new_name.clone());
 
-            // Update the tools mapping
             let tools_to_update: Vec<String> = session
                 .tools
                 .iter()
@@ -206,7 +192,6 @@ pub async fn rename_server(
                 session.tools.insert(tool_name, new_name.clone());
             }
 
-            // Move the server to the new name in the map
             if let Some(server) = session.mcp_servers.remove(&old_name) {
                 session.mcp_servers.insert(new_name, server);
             }

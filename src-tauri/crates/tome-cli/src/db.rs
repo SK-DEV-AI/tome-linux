@@ -2,14 +2,13 @@ use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use rusqlite::Connection;
 use std::path::PathBuf;
+use crate::models::{ClientOptions, Engine};
 
 /// Finds the path to the SQLite database used by the Tome GUI application.
 fn database_path() -> Option<PathBuf> {
     ProjectDirs::from("co", "runebook", "Tome")
         .map(|proj_dirs| proj_dirs.data_dir().join("tome.db"))
 }
-
-use crate::models::{ClientOptions, Engine};
 
 /// Establishes a connection to the Tome database.
 pub fn connect() -> Result<Connection> {
@@ -28,7 +27,6 @@ impl std::fmt::Display for OptionsParseError {
 }
 
 impl std::error::Error for OptionsParseError {}
-
 
 /// Fetches all configured engines from the database.
 pub fn get_engines(conn: &Connection) -> Result<Vec<Engine>> {

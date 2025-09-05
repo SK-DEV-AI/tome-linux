@@ -6,6 +6,7 @@
 
     import { getTooltip, type TooltipData } from '$components/Tooltip.svelte';
     import StartupError from '$components/StartupError.svelte';
+    import Toaster from '$components/Toaster.svelte';
     import closables from '$lib/closables';
     import * as colorscheme from '$lib/colorscheme';
     import { Setting } from '$lib/models';
@@ -78,6 +79,8 @@
 </script>
 
 <svelte:window {onclick} {onkeypress} {onkeydown} />
+
+<Toaster />
 
 {#if getTooltip()}
     {@const tooltip = getTooltip() as TooltipData}
