@@ -1,6 +1,7 @@
 import type { ToSqlRow } from './base.svelte';
 
 import { startupError } from '$lib/stores/error';
+import { toasts } from '$lib/stores/toasts';
 import Gemini from '$lib/engines/gemini/client';
 import Ollama from '$lib/engines/ollama/client';
 import OpenAI from '$lib/engines/openai/client';
@@ -76,13 +77,16 @@ export default class Engine extends Base<Row>('engines') {
                     )
                     .sortBy('name');
             } catch (e) {
-                if (engine.type === 'ollama') {
-                    startupError.set(
-                        'Ollama server not found. Please ensure it is running and accessible.'
-                    );
+                const errorMessage = `Failed to connect to the '${engine.name}' engine. Please check its configuration and ensure it is accessible.`;
+                console.error(errorMessage, e);
+
+                // If this is the only engine configured, it's a critical startup error.
+                if (Engine.all().length === 1) {
+                    startupError.set(errorMessage);
+                } else {
+                    // If other engines might still work, show a non-blocking toast
+                    toasts.error(`Connection to '${engine.name}' failed.`);
                 }
-                // Log other errors for debugging, but don't block the UI
-                console.error(`Failed to fetch models for engine ${engine.name}:`, e);
             }
         }
 

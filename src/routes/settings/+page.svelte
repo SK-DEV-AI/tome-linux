@@ -8,6 +8,7 @@
     import Scrollable from '$components/Scrollable.svelte';
     import CustomPromptView from '$components/Settings/CustomPrompt.svelte';
     import EngineView from '$components/Settings/Engine.svelte';
+    import SmitheryKeyView from '$components/Settings/SmitheryKey.svelte';
     import Svg from '$components/Svg.svelte';
     import Titlebar from '$components/Titlebar.svelte';
     import Toggle from '$components/Toggle.svelte';
@@ -83,6 +84,19 @@
                             View Logs
                         </Button>
                     </section>
+                </Flex>
+            </Flex>
+
+            <Flex class="w-full items-start gap-4">
+                <section class="w-2/5">
+                    <h2 class="font-semibold uppercase">Smithery API Key</h2>
+                    <p class="text-medium font-light">
+                        Sync your account to access private servers and other features.
+                    </p>
+                </section>
+
+                <Flex class="w-full flex-col items-start">
+                    <SmitheryKeyView bind:saving />
                 </Flex>
             </Flex>
 

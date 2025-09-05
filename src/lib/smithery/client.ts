@@ -1,33 +1,56 @@
-import { HttpClient } from '$lib/http';
+import { HttpClient, type HttpOptions } from '$lib/http';
 import type { CompactServer, Server, ServerList } from '$lib/smithery/types';
 
+interface ClientOptions extends HttpOptions {
+    apiKey?: string;
+}
+
 export class Client extends HttpClient {
-    options: RequestInit = {
-        signal: AbortSignal.timeout(30000),
-        headers: {
-            Authorization: 'Bearer 4f91ed5c-d3ae-4ba6-9169-10455db2e626',
-        },
-    };
+    constructor(options: ClientOptions = {}) {
+        const apiKey = options.apiKey;
+        delete options.apiKey;
+
+        if (apiKey && apiKey.trim() !== '') {
+            options.headers = {
+                ...options.headers,
+                Authorization: `Bearer ${apiKey}`,
+            };
+        }
+
+        super(options);
+    }
 
     get url() {
         return 'https://registry.smithery.ai';
     }
 
-    async servers(page: number = 1): Promise<CompactServer[]> {
-        return (
-            (await this.get(`/servers?q=is:local&pageSize=24&page=${page}`)) as ServerList
-        ).servers.filter(s => Number(s.useCount) > 0);
+    async test(): Promise<boolean> {
+        try {
+            const result = await this.get('/servers?pageSize=1');
+            return !!result; // Will be falsy if get returns undefined, truthy otherwise
+        } catch (e) {
+            console.error("Smithery connection test failed:", e);
+            return false;
+        }
+    }
+
+    async servers(page: number = 1): Promise<ServerList> {
+        const query = this.options.headers?.Authorization ? '' : 'is:local';
+        const response = (await this.get(
+            `/servers?q=${query}&pageSize=24&page=${page}`
+        )) as ServerList;
+        return response || { servers: [], pagination: { currentPage: 1, pageSize: 24, totalPages: 0, totalCount: 0 } };
     }
 
     async server(name: string): Promise<Server> {
         return (await this.get(`/servers/${name}`)) as Server;
     }
 
-    async search(query: string): Promise<CompactServer[]> {
+    async search(query: string): Promise<ServerList> {
+        const baseQuery = this.options.headers?.Authorization ? '' : 'is:local';
         const q = encodeURIComponent(query).replace(/%20/g, '+');
-
-        return ((await this.get(`/servers?q=is:local+${q}`)) as ServerList).servers.filter(
-            s => Number(s.useCount) > 0
-        );
+        const finalQuery = baseQuery ? `${baseQuery}+${q}` : q;
+        const response = (await this.get(`/servers?q=${finalQuery}`)) as ServerList;
+        return response || { servers: [], pagination: { currentPage: 1, pageSize: 24, totalPages: 0, totalCount: 0 } };
     }
 }
