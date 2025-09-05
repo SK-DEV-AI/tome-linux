@@ -1,5 +1,6 @@
 import type { ToSqlRow } from './base.svelte';
 
+import { startupError } from '$lib/stores/error';
 import Gemini from '$lib/engines/gemini/client';
 import Ollama from '$lib/engines/ollama/client';
 import OpenAI from '$lib/engines/openai/client';
@@ -74,8 +75,14 @@ export default class Engine extends Base<Row>('engines') {
                             AVAILABLE_MODELS[engine.type].includes(m.name)
                     )
                     .sortBy('name');
-            } catch {
-                // noop
+            } catch (e) {
+                if (engine.type === 'ollama') {
+                    startupError.set(
+                        'Ollama server not found. Please ensure it is running and accessible.'
+                    );
+                }
+                // Log other errors for debugging, but don't block the UI
+                console.error(`Failed to fetch models for engine ${engine.name}:`, e);
             }
         }
 

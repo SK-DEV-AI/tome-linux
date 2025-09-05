@@ -5,10 +5,12 @@
     import { goto, onNavigate } from '$app/navigation';
 
     import { getTooltip, type TooltipData } from '$components/Tooltip.svelte';
+    import StartupError from '$components/StartupError.svelte';
     import closables from '$lib/closables';
     import * as colorscheme from '$lib/colorscheme';
     import { Setting } from '$lib/models';
     import { resync } from '$lib/models';
+    import { startupError } from '$lib/stores/error';
 
     const { children } = $props();
 
@@ -100,4 +102,8 @@
     </div>
 {/if}
 
-{@render children?.()}
+{#if $startupError}
+    <StartupError message={$startupError} />
+{:else}
+    {@render children?.()}
+{/if}
