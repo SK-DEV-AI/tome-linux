@@ -55,7 +55,7 @@
         },
         "updater": {
             "active": false,
-            "pubkey": null,
+            "pubkey": "",
             "endpoints": [
                 "https://github.com/runebookai/tome/releases/latest/download/latest.json"
             ]
