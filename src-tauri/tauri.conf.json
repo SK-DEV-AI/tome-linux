@@ -10,7 +10,6 @@
         "active": true,
         "category": "DeveloperTool",
         "copyright": "",
-        "createUpdaterArtifacts": true,
         "targets": [
             "deb"
         ],
@@ -26,8 +25,7 @@
             "uvx": "uvx",
             "node": "node",
             "npx": "npx",
-            "bunx": "bunx",
-            "build/platform/windows/bin/*": ""
+            "bunx": "bunx"
         },
         "shortDescription": "",
         "linux": {
@@ -54,11 +52,7 @@
             }
         },
         "updater": {
-            "active": false,
-            "pubkey": "",
-            "endpoints": [
-                "https://github.com/runebookai/tome/releases/latest/download/latest.json"
-            ]
+            "active": false
         }
     },
     "app": {
@@ -77,45 +71,20 @@
             "csp": null,
             "capabilities": [
                 {
-                    "identifier": "default",
+                    "identifier": "default-capability",
                     "windows": [
                         "*"
                     ],
                     "permissions": [
                         "core:default",
                         "opener:default",
+                        "fs:default",
                         "fs:allow-appdata-read",
                         "fs:allow-appdata-write",
                         "fs:allow-resource-read",
                         "sql:default",
-                        "sql:allow-execute",
                         "updater:default",
                         "window-state:default"
-                    ]
-                },
-                {
-                    "identifier": "draggable-window",
-                    "windows": [
-                        "*"
-                    ],
-                    "permissions": [
-                        "core:window:allow-start-dragging"
-                    ]
-                },
-                {
-                    "identifier": "main-capability",
-                    "windows": [
-                        "*"
-                    ],
-                    "permissions": [
-                        {
-                            "identifier": "opener:allow-open-path",
-                            "allow": [
-                                {
-                                    "path": "$HOME/**/*.log"
-                                }
-                            ]
-                        }
                     ]
                 }
             ]
