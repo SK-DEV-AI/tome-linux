@@ -62,6 +62,17 @@
         }
     },
     "app": {
+        "windows": [
+            {
+                "label": "main",
+                "title": "Tome",
+                "width": 1024,
+                "height": 768,
+                "resizable": true,
+                "fullscreen": false,
+                "visible": false
+            }
+        ],
         "security": {
             "csp": null,
             "capabilities": [
