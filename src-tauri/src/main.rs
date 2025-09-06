@@ -1,3 +1,6 @@
+//! main.rs (updater plugin removed)
+//! The updater plugin registration has been removed so users do not need a pubkey.
+
 #![warn(unused_extern_crates)]
 
 mod commands;
@@ -64,10 +67,12 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 }
 
 fn main() {
+    // Build the tauri::Builder without the updater plugin.
+    // This removes the requirement to have a `plugins.updater.pubkey` in tauri.conf.json.
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        // Updater plugin intentionally not registered
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|_app, _argv, _cwd| {}))
         .plugin(tauri_plugin_deep_link::init())
