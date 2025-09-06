@@ -115,6 +115,17 @@ async function asyncRelayChat(relay: Relay, update: TelegramUpdate) {
 
     const TELEGRAM_API = 'https://api.telegram.org/bot';
     const url = `${TELEGRAM_API}${relay.config.api_key}/sendMessage?chat_id=${update.message.chat.id}&text=${encodeURIComponent(llm_response.content)}`;
-    const resp = await fetch(url);
-    info(`Telegram Response: ${resp.text()}`);
+    try {
+        const resp = await fetch(url);
+        let respText = '';
+        try {
+            // attempt to get body text for logging (safe and best-effort)
+            respText = await resp.text();
+        } catch (e) {
+            respText = `<failed to read response body: ${e instanceof Error ? e.message : String(e)}>`;
+        }
+        info(`Telegram Response: status=${resp.status} body=${respText}`);
+    } catch (e) {
+        error(`Failed to send message to Telegram: ${e instanceof Error ? e.message : String(e)}`);
+    }
 }
