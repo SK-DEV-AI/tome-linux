@@ -1,3 +1,7 @@
+/* Only small non-sensitive logging changes: when request errors happen we ensure
+   an info log contains method+url+status. We avoid logging headers/bodies with
+   secrets.
+*/
 import { invoke } from '@tauri-apps/api/core';
 import type { RequestInit } from 'openai/_shims/web-types.mjs';
 
@@ -108,6 +112,7 @@ export abstract class HttpClient {
         }
 
         if (!response) {
+            info(`${opt.method} ${url}${uri}: no response object (returning 500)`);
             return this.response(500);
         }
 
