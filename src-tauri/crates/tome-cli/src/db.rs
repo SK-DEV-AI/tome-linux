@@ -7,12 +7,12 @@ use crate::models::{ClientOptions, Engine};
 /// Finds the path to the SQLite database used by the Tome GUI application.
 fn database_path() -> Option<PathBuf> {
     ProjectDirs::from("co", "runebook", "Tome")
-        .map(|proj_dirs| proj_dirs.data_dir().join("tome.db"))
+        .map(|proj_dirs| proj_dirs.config_dir().join("tome.db"))
 }
 
 /// Establishes a connection to the Tome database.
 pub fn connect() -> Result<Connection> {
-    let path = database_path().context("Could not determine application data directory.")?;
+    let path = database_path().context("Could not determine application config directory.")?;
     Connection::open(&path).with_context(|| format!("Failed to open database at {}", path.display()))
 }
 
