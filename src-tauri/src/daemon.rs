@@ -104,16 +104,22 @@ pub async fn watch<P: AsRef<Path>>(
 
     watchers.add_thread(thread::spawn(move || {
         let tx_inner = tx.clone();
-        let mut watcher = notify::recommended_watcher(move |res| {
+        let mut watcher = match notify::recommended_watcher(move |res| {
             if let Err(err) = tx_inner.send(res) {
-                println!("Failed to notify: {err:?}");
+                log::error!("Failed to notify: {:?}", err);
             }
-        })
-        .expect("Failed to create watcher");
+        }) {
+            Ok(w) => w,
+            Err(e) => {
+                log::error!("Failed to create watcher: {:?}", e);
+                return;
+            }
+        };
 
-        watcher
-            .watch(&path, RecursiveMode::Recursive)
-            .expect("Failed to watch path");
+        if let Err(e) = watcher.watch(&path, RecursiveMode::Recursive) {
+            log::error!("Failed to watch path {:?}: {:?}", path, e);
+            return;
+        }
 
         std::thread::park();
     }));
@@ -121,7 +127,9 @@ pub async fn watch<P: AsRef<Path>>(
     watchers.add_tauri(tauri::async_runtime::spawn(async move {
         while let Some(res) = rx.recv().await {
             if let Ok(event) = res {
-                dispatch(event.clone(), id).expect(&format!("Failed to dispatch: {event:?}"));
+                if let Err(e) = dispatch(event.clone(), id) {
+                    log::error!("Failed to dispatch event {:?}: {}", event, e);
+                }
             }
         }
     }));

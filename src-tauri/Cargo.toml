@@ -59,6 +59,7 @@ directories = "5.0"
 dialoguer = "0.11.0"
 console = "0.15.8"
 futures-util = "0.3"
+native-dialog = "0.7.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

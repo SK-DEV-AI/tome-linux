@@ -47,15 +47,17 @@ pub async fn fetch(url: String, options: ProxyOptions) -> Result<HTTPResponse, S
     };
 
     let mut headers = HeaderMap::new();
-    headers.insert("Origin", "tauri://runebook.ai".parse().unwrap());
-    headers.insert("Content-Type", "application/json".parse().unwrap());
+    // These are known-good values, so expect is acceptable for programmer error.
+    headers.insert("Origin", "tauri://runebook.ai".parse().expect("Static origin header should be valid"));
+    headers.insert("Content-Type", "application/json".parse().expect("Static content-type header should be valid"));
 
     if let Some(h) = options.headers {
         for (k, v) in h.iter() {
-            headers.insert(
-                HeaderName::from_bytes(k.as_bytes()).unwrap(),
-                HeaderValue::from_bytes(v.as_bytes()).unwrap(),
-            );
+            let header_name = HeaderName::from_bytes(k.as_bytes())
+                .map_err(|e| format!("Invalid header name '{}': {}", k, e))?;
+            let header_value = HeaderValue::from_bytes(v.as_bytes())
+                .map_err(|e| format!("Invalid header value for '{}': {}", k, e))?;
+            headers.insert(header_name, header_value);
         }
     }
 
@@ -91,9 +93,7 @@ pub async fn fetch(url: String, options: ProxyOptions) -> Result<HTTPResponse, S
         .map(|(k, v)| {
             (
                 k.to_string(),
-                v.to_str()
-                    .unwrap_or("Failed to build response: invalid UTF-8 in headers")
-                    .to_string(),
+                String::from_utf8_lossy(v.as_bytes()).to_string(),
             )
         })
         .collect::<HashMap<_, _>>();
