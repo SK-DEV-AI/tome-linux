@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use sysinfo::{Pid, System};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
@@ -9,52 +9,36 @@ pub struct Process {
 }
 
 impl Process {
-    pub fn current() -> Self {
-        Self {
-            pid: sysinfo::get_current_pid().expect("Failed to get current process ID"),
-        }
+    pub fn current() -> Result<Self> {
+        sysinfo::get_current_pid()
+            .map(|pid| Self { pid })
+            .map_err(|e| anyhow!("Failed to get current process ID: {}", e))
     }
 
-    pub fn find(pid: Pid) -> Option<Self> {
-        System::new_all().process(pid).map(|_| Self { pid })
-    }
-
-    pub fn children(&self) -> Result<HashSet<Self>> {
-        let mut procs: HashSet<Self> = HashSet::new();
-        let sys = System::new_all();
-
+    pub fn children(&self, sys: &System) -> HashSet<Self> {
+        let mut procs = HashSet::new();
         for (pid, proc) in sys.processes().iter() {
             if let Some(parent_pid) = proc.parent() {
                 if parent_pid == self.pid {
                     let child_proc = Self { pid: *pid };
                     procs.insert(child_proc.clone());
-                    // Handle the result from the recursive call
-                    match child_proc.children() {
-                        Ok(grandchildren) => procs.extend(grandchildren),
-                        Err(e) => {
-                            log::error!(
-                                "Failed to get children of process {}: {}",
-                                child_proc.pid,
-                                e
-                            );
-                        }
-                    }
+                    procs.extend(child_proc.children(sys));
                 }
             }
         }
-
-        Ok(procs)
+        procs
     }
 
-    pub fn kill(&self) -> Result<bool> {
-        let sys = System::new_all();
+    pub fn kill_tree(&self) -> Result<bool> {
+        let mut sys = System::new();
+        sys.refresh_all();
 
-        self.children()?
-            .iter()
-            .all(|proc| match sys.process(proc.pid) {
-                Some(p) => p.kill(),
-                None => false,
-            });
+        let children = self.children(&sys);
+        for proc in children {
+            if let Some(p) = sys.process(proc.pid) {
+                p.kill();
+            }
+        }
 
         if let Some(parent) = sys.process(self.pid) {
             Ok(parent.kill())

@@ -1,6 +1,8 @@
 use anyhow::Result;
 use serde::Deserialize;
 
+use crate::models::ChatMessage;
+
 #[derive(Debug, Deserialize)]
 pub struct OllamaModel {
     pub name: String,
@@ -19,12 +21,6 @@ pub async fn get_models(url: &str) -> Result<Vec<String>> {
     let response = client.get(format!("{}/api/tags", url)).send().await?;
     let json: OllamaTagsResponse = response.json().await?;
     Ok(json.models.into_iter().map(|m| m.name).collect())
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ChatMessage {
-    pub role: String,
-    pub content: String,
 }
 
 #[derive(Debug, Serialize)]

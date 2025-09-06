@@ -54,23 +54,22 @@ pub async fn start(
     let handle = app.clone();
     let state = handle.state::<State>();
     let server = McpServer::start(command, args, env, app).await?;
+    let server_name = server.name().to_string();
 
     let mut sessions = state.sessions.lock().await;
+    let session = sessions.entry(session_id).or_default();
 
-    let mut session = sessions.remove(&session_id).unwrap_or_default();
-
-    if session.mcp_servers.contains_key(&server.name()) {
+    if session.mcp_servers.contains_key(&server_name) {
         server.kill()?;
-        sessions.insert(session_id, session);
-        return Ok(());
+        return Err(anyhow!("A server with the name '{}' is already running in this session.", server_name));
     }
 
-    server.tools().await?.iter().for_each(|tool| {
-        session.tools.insert(tool.name.to_string(), server.name());
-    });
+    let tools = server.tools().await?;
+    for tool in tools {
+        session.tools.insert(tool.name.to_string(), server_name.clone());
+    }
 
-    session.mcp_servers.insert(server.name(), server);
-    sessions.insert(session_id, session);
+    session.mcp_servers.insert(server_name, server);
 
     Ok(())
 }
@@ -78,14 +77,14 @@ pub async fn start(
 pub async fn stop(session_id: i32, name: String, state: tauri::State<'_, State>) -> Result<()> {
     let mut sessions = state.sessions.lock().await;
 
-    if let Some(mut session) = sessions.remove(&session_id) {
-        if let Some(server) = session.mcp_servers.remove(&name) {
-            server.kill()?;
-        }
-        sessions.insert(session_id, session);
-    }
+    let session = sessions.get_mut(&session_id).ok_or_else(|| anyhow!("Session {} not found", session_id))?;
 
-    Ok(())
+    if let Some(server) = session.mcp_servers.remove(&name) {
+        server.kill()?;
+        Ok(())
+    } else {
+        Err(anyhow!("Server '{}' not found in session {}", name, session_id))
+    }
 }
 
 pub async fn stop_session(session_id: i32, state: tauri::State<'_, State>) -> Result<()> {
@@ -96,12 +95,11 @@ pub async fn stop_session(session_id: i32, state: tauri::State<'_, State>) -> Re
             server.kill()?;
         }
     }
-
+    // This function is designed to succeed even if the session doesn't exist.
     Ok(())
 }
 
 pub async fn get_tools(session_id: i32, state: tauri::State<'_, State>) -> Result<Vec<Tool>> {
-    let mut tools: Vec<Tool> = vec![];
     let sessions = state.sessions.lock().await;
 
     let running_session = match sessions.get(&session_id) {
@@ -109,6 +107,7 @@ pub async fn get_tools(session_id: i32, state: tauri::State<'_, State>) -> Resul
         None => return Ok(vec![]),
     };
 
+    let mut tools: Vec<Tool> = vec![];
     for server in running_session.mcp_servers.values() {
         tools.extend(server.tools().await?)
     }
@@ -124,26 +123,15 @@ pub async fn call_tool(
 ) -> Result<String> {
     let sessions = state.sessions.lock().await;
 
-    let running_session = match sessions.get(&session_id) {
-        Some(s) => s,
-        None => return Err(anyhow!("Session {} not found", session_id)),
-    };
+    let running_session = sessions.get(&session_id)
+        .ok_or_else(|| anyhow!("Session {} not found", session_id))?;
 
-    let service_name = match running_session.tools.get(&name) {
-        Some(s) => s.clone(),
-        None => return Err(anyhow!("Tool {} not found in session {}", name, session_id)),
-    };
+    let service_name = running_session.tools.get(&name)
+        .ok_or_else(|| anyhow!("Tool '{}' not found in session {}", name, session_id))?
+        .clone();
 
-    let server = match running_session.mcp_servers.get(&service_name) {
-        Some(s) => s,
-        None => {
-            return Err(anyhow!(
-                "MCP Server {} not found for tool {}",
-                service_name,
-                name
-            ))
-        }
-    };
+    let server = running_session.mcp_servers.get(&service_name)
+        .ok_or_else(|| anyhow!("MCP Server '{}' not found for tool '{}'", service_name, name))?;
 
     let tool_call = CallToolRequestParam {
         name: std::borrow::Cow::from(name),
@@ -173,26 +161,18 @@ pub async fn rename_server(
 ) -> Result<()> {
     let mut sessions = state.sessions.lock().await;
 
-    if let Some(session) = sessions.get_mut(&session_id) {
-        if let Some(server) = session.mcp_servers.get_mut(&old_name) {
-            server.set_name(new_name.clone());
+    let session = sessions.get_mut(&session_id)
+        .ok_or_else(|| anyhow!("Session {} not found", session_id))?;
 
-            let tools_to_update: Vec<String> = session
-                .tools
-                .iter()
-                .filter(|(_, server_name)| *server_name == &old_name)
-                .map(|(tool_name, _)| tool_name.clone())
-                .collect();
-
-            for tool_name in tools_to_update {
-                session.tools.insert(tool_name, new_name.clone());
-            }
-
-            if let Some(server) = session.mcp_servers.remove(&old_name) {
-                session.mcp_servers.insert(new_name, server);
+    if let Some(server) = session.mcp_servers.remove(&old_name) {
+        for (_, server_name) in session.tools.iter_mut() {
+            if *server_name == old_name {
+                *server_name = new_name.clone();
             }
         }
+        session.mcp_servers.insert(new_name, server);
+        Ok(())
+    } else {
+        Err(anyhow!("Server '{}' not found in session {}", old_name, session_id))
     }
-
-    Ok(())
 }

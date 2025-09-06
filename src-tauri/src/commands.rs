@@ -11,7 +11,10 @@ macro_rules! ok_or_err {
     ($expr:expr) => {
         match $expr {
             Ok(r) => Ok(r),
-            Err(e) => Err(e.to_string()),
+            Err(e) => {
+                log::error!("Command failed: {}", e);
+                Err(e.to_string())
+            }
         }
     };
 }
@@ -34,7 +37,7 @@ pub async fn start_mcp_server(
     env: HashMap<String, String>,
     app: AppHandle,
 ) -> Result<(), String> {
-    println!("-> start_mcp_server({}, {})", session_id, command);
+    log::debug!("-> start_mcp_server({}, {})", session_id, command);
     ok_or_err!(mcp::start(session_id, command, args, env, app).await)
 }
 
@@ -44,7 +47,7 @@ pub async fn stop_mcp_server(
     name: String,
     state: tauri::State<'_, State>,
 ) -> Result<(), String> {
-    println!("-> stop_mcp_server({}, {})", session_id, name);
+    log::debug!("-> stop_mcp_server({}, {})", session_id, name);
     ok_or_err!(mcp::stop(session_id, name, state).await)
 }
 
@@ -63,9 +66,7 @@ pub async fn call_mcp_tool(
     arguments: serde_json::Map<String, serde_json::Value>,
     state: tauri::State<'_, State>,
 ) -> Result<String, String> {
-    Ok(mcp::call_tool(session_id, name, arguments, state)
-        .await
-        .unwrap())
+    ok_or_err!(mcp::call_tool(session_id, name, arguments, state).await)
 }
 
 #[tauri::command]
@@ -85,7 +86,7 @@ pub async fn rename_mcp_server(
     new_name: String,
     state: tauri::State<'_, State>,
 ) -> Result<(), String> {
-    println!(
+    log::debug!(
         "-> rename_mcp_server({}, {} -> {})",
         session_id, old_name, new_name
     );
@@ -94,8 +95,7 @@ pub async fn rename_mcp_server(
 
 #[tauri::command]
 pub async fn watch(path: String, id: i64, state: tauri::State<'_, State>) -> Result<(), String> {
-    daemon::watch(path, id, state.clone()).await.unwrap();
-    Ok(())
+    ok_or_err!(daemon::watch(path, id, state.clone()).await)
 }
 
 #[tauri::command]

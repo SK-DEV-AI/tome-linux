@@ -48,10 +48,6 @@ impl McpServer {
             .unwrap_or_else(|| self.peer_info().server_info.name.clone())
     }
 
-    pub fn set_name(&mut self, new_name: String) {
-        self.custom_name = Some(new_name);
-    }
-
     pub fn peer_info(&self) -> <RoleClient as ServiceRole>::PeerInfo {
         self.service.peer_info().clone()
     }
@@ -67,18 +63,17 @@ impl McpServer {
             .await?
             .content
             .iter()
-            .map(|r| match r.raw.clone() {
-                RawContent::Text(t) => t.text,
-                _ => String::new(),
+            .filter_map(|r| match r.raw.clone() {
+                RawContent::Text(t) => Some(t.text),
+                _ => None,
             })
             .collect::<Vec<String>>()
             .join("\n"))
     }
 
-    pub fn kill(&self) -> Result<bool> {
-        match Process::find(self.pid) {
-            Some(p) => p.kill(),
-            None => Ok(false),
-        }
+    pub fn kill(&self) -> Result<()> {
+        let process = Process { pid: self.pid };
+        process.kill_tree()?;
+        Ok(())
     }
 }

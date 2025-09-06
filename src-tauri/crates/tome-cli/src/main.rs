@@ -2,9 +2,12 @@ mod clients;
 mod db;
 mod models;
 
+use anyhow::Context;
 use dialoguer::{theme::ColorfulTheme, Select};
 use futures_util::StreamExt;
 use std::io::Write;
+
+use models::ChatMessage;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -20,17 +23,17 @@ async fn main() -> anyhow::Result<()> {
 
     let engines = db::get_engines(&conn)?;
 
-    let mut all_models: Vec<(String, String, String, String)> = Vec::new(); // (model_name, engine_name, engine_url, engine_type)
+    let mut all_models: Vec<(String, models::Engine)> = Vec::new();
 
-    for engine in &engines {
+    for engine in engines {
         println!("Fetching models for engine: {}", engine.name);
         let models = match engine.r#type.as_str() {
             "ollama" => {
-                let url = engine.options.url.as_deref().unwrap_or_default();
+                let url = engine.options.url.as_deref().unwrap_or("http://localhost:11434");
                 clients::ollama::get_models(url).await
             }
             "openai-compat" | "openai" => {
-                let url = engine.options.url.as_deref().unwrap_or_default();
+                let url = engine.options.url.as_deref().context("URL not found for OpenAI engine")?;
                 let key = engine.options.api_key.as_deref();
                 clients::openai::get_models(url, key).await
             }
@@ -43,15 +46,10 @@ async fn main() -> anyhow::Result<()> {
         if let Ok(model_names) = models {
             println!("  > Found {} models.", model_names.len());
             for model_name in model_names {
-                all_models.push((
-                    model_name,
-                    engine.name.clone(),
-                    engine.options.url.clone().unwrap_or_default(),
-                    engine.r#type.clone(),
-                ));
+                all_models.push((model_name, engine.clone()));
             }
-        } else {
-            println!("  > Error fetching models for {}", engine.name);
+        } else if let Err(e) = models {
+            println!("  > Error fetching models for {}: {}", engine.name, e);
         }
     }
 
@@ -61,23 +59,23 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let model_names: Vec<String> = all_models
+    let model_display_names: Vec<String> = all_models
         .iter()
-        .map(|(name, engine_name, _, _)| format!("{} ({})", name, engine_name))
+        .map(|(name, engine)| format!("{} ({})", name, engine.name))
         .collect();
 
     let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select a model to chat with:")
-        .items(&model_names)
+        .items(&model_display_names)
         .default(0)
         .interact()?;
 
-    let (selected_model, _, url, engine_type) = &all_models[selection];
+    let (selected_model_name, selected_engine) = &all_models[selection];
 
-    println!("Starting chat with {}...", selected_model);
+    println!("Starting chat with {}...", selected_model_name);
     println!("Type 'exit' or 'quit' to end the session.");
 
-    let mut history: Vec<clients::ollama::ChatMessage> = Vec::new();
+    let mut history: Vec<ChatMessage> = Vec::new();
 
     loop {
         print!("> ");
@@ -91,38 +89,56 @@ async fn main() -> anyhow::Result<()> {
             break;
         }
 
-        history.push(clients::ollama::ChatMessage {
+        history.push(ChatMessage {
             role: "user".to_string(),
             content: input.to_string(),
         });
 
-        if engine_type == "ollama" {
-            let mut stream =
-                clients::ollama::chat_stream(url, selected_model, history.clone()).await?;
+        let mut full_response = String::new();
+        print!("\nAssistant: ");
 
-            let mut full_response = String::new();
-            print!("\nAssistant: ");
-            while let Some(Ok(chunk)) = stream.next().await {
-                let content = chunk.message.content;
-                print!("{}", content);
-                std::io::stdout().flush()?;
-                full_response.push_str(&content);
+        match selected_engine.r#type.as_str() {
+            "ollama" => {
+                let url = selected_engine.options.url.as_deref().unwrap_or("http://localhost:11434");
+                let mut stream =
+                    clients::ollama::chat_stream(url, selected_model_name, history.clone()).await?;
 
-                if chunk.done {
-                    break;
+                while let Some(Ok(chunk)) = stream.next().await {
+                    let content = chunk.message.content;
+                    print!("{}", content);
+                    std::io::stdout().flush()?;
+                    full_response.push_str(&content);
+
+                    if chunk.done {
+                        break;
+                    }
                 }
             }
+            "openai-compat" | "openai" => {
+                let url = selected_engine.options.url.as_deref().context("URL not found for OpenAI engine")?;
+                let key = selected_engine.options.api_key.as_deref();
+                let stream =
+                    clients::openai::chat_stream(url, selected_model_name, history.clone(), key).await?;
+                let mut stream = Box::pin(stream);
 
-            history.push(clients::ollama::ChatMessage {
-                role: "assistant".to_string(),
-                content: full_response,
-            });
-            println!("\n");
-        } else {
-            println!("\nChatting with {} engines is not yet implemented in the CLI.", engine_type);
-            // Remove the user message from history as we didn't process it
-            history.pop();
+                while let Some(Ok(content)) = stream.next().await {
+                    print!("{}", content);
+                    std::io::stdout().flush()?;
+                    full_response.push_str(&content);
+                }
+            }
+            _ => {
+                println!("\nChatting with {} engines is not yet implemented in the CLI.", selected_engine.r#type);
+                history.pop(); // Remove the user message from history as we didn't process it
+                continue;
+            }
         }
+
+        history.push(ChatMessage {
+            role: "assistant".to_string(),
+            content: full_response,
+        });
+        println!("\n");
     }
 
     Ok(())
